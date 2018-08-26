@@ -17,7 +17,7 @@ type Elements interface {
 	Len() int
 	At(i int) Element
 	Slice(start, end int) Elements
-	fmt.Stringer
+	Join() string
 }
 
 func NewDocument(doc string) Elements {
@@ -55,12 +55,16 @@ type Lines struct {
 	indexOfLine []int
 }
 
+var _ interface {
+	Elements
+} = Lines{}
+
 func (l Lines) Len() int {
 	return len(l.indexOfLine) - 1
 }
 
 func (l Lines) At(i int) Element {
-	return NewLineRaw(l.raw[l.indexOfLine[i]:l.indexOfLine[i+1]])
+	return NewLineRaw(l.raw, l.indexOfLine[i], l.indexOfLine[i+1])
 }
 
 func (l Lines) Slice(start, end int) Elements {
@@ -71,7 +75,7 @@ func (l Lines) Slice(start, end int) Elements {
 	}
 }
 
-func (l Lines) String() string {
+func (l Lines) Join() string {
 	var sb strings.Builder
 	For(l, func(i int, e Element) {
 		sb.WriteString(e.String())
@@ -79,26 +83,39 @@ func (l Lines) String() string {
 	return sb.String()
 }
 
-func NewLineRaw(raw []byte) Line {
-	return Line(raw)
+func NewLineRaw(raw []byte, start, end int) Line {
+	return Line{raw, start, end}
 }
 
 func NewLine(s string) Line {
-	return NewLineRaw([]byte(s))
+	return NewLineRaw([]byte(s), 0, len(s))
 }
 
-type Line []byte
+type Line struct {
+	raw   []byte
+	start int
+	end   int
+}
+
+var _ interface {
+	Elements
+	Element
+} = Line{}
 
 func (l Line) Equals(e Element) bool {
 	l2, ok := e.(Line)
 	if !ok {
 		return false
 	}
-	return bytes.Equal(l, l2)
+	return bytes.Equal(l.bytes(), l2.bytes())
+}
+
+func (l Line) bytes() []byte {
+	return l.raw[l.start:l.end]
 }
 
 func (l Line) runes() []rune {
-	return []rune(string(l))
+	return []rune(string(l.bytes()))
 }
 
 func (l Line) Len() int {
@@ -109,17 +126,21 @@ func (l Line) At(i int) Element {
 	return NewRune(l.runes()[i])
 }
 
+func (l Line) Join() string {
+	return l.String()
+}
+
 func (l Line) String() string {
-	return string(l)
+	return string(l.bytes())
 }
 
 func (l Line) Slice(start, end int) Elements {
-	return Line(l[start:end])
+	return Line{l.raw, l.start + start, l.start + end}
 }
 
 func (l Line) Hash() uint64 {
 	h := fnv.New64()
-	h.Write(l)
+	h.Write(l.bytes())
 	return h.Sum64()
 }
 
