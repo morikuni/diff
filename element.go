@@ -13,14 +13,7 @@ type Element interface {
 	fmt.Stringer
 }
 
-type Elements interface {
-	Len() int
-	At(i int) Element
-	Slice(start, end int) Elements
-	Join() string
-}
-
-func NewDocument(doc string) Elements {
+func NewDocument(doc string) Document {
 	return NewLines(doc)
 }
 
@@ -47,16 +40,17 @@ func NewLines(s string) Lines {
 		indexOfLine = append(indexOfLine, l)
 	}
 
-	return Lines{raw, indexOfLine}
+	return Lines{raw, indexOfLine, 0}
 }
 
 type Lines struct {
 	raw         []byte
 	indexOfLine []int
+	base        int
 }
 
 var _ interface {
-	Elements
+	Document
 } = Lines{}
 
 func (l Lines) Len() int {
@@ -67,11 +61,12 @@ func (l Lines) At(i int) Element {
 	return NewLineRaw(l.raw, l.indexOfLine[i], l.indexOfLine[i+1])
 }
 
-func (l Lines) Slice(start, end int) Elements {
+func (l Lines) Slice(start, end int) Document {
 	indexOfLine := l.indexOfLine[start : end+1]
 	return Lines{
 		l.raw,
 		indexOfLine,
+		l.base + start,
 	}
 }
 
@@ -81,6 +76,10 @@ func (l Lines) Join() string {
 		sb.WriteString(e.String())
 	})
 	return sb.String()
+}
+
+func (l Lines) AbsoluteRange() (int, int) {
+	return l.base, l.base + l.Len()
 }
 
 func NewLineRaw(raw []byte, start, end int) Line {
@@ -98,7 +97,7 @@ type Line struct {
 }
 
 var _ interface {
-	Elements
+	Document
 	Element
 } = Line{}
 
@@ -134,8 +133,12 @@ func (l Line) String() string {
 	return string(l.bytes())
 }
 
-func (l Line) Slice(start, end int) Elements {
+func (l Line) Slice(start, end int) Document {
 	return Line{l.raw, l.start + start, l.start + end}
+}
+
+func (l Line) AbsoluteRange() (int, int) {
+	return l.start, l.end
 }
 
 func (l Line) Hash() uint64 {
@@ -149,6 +152,10 @@ func NewRune(r rune) Rune {
 }
 
 type Rune rune
+
+var _ interface {
+	Element
+} = Rune(0)
 
 func (r Rune) Equals(e Element) bool {
 	r2, ok := e.(Rune)
