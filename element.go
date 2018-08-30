@@ -40,13 +40,14 @@ func NewLines(s string) Lines {
 		indexOfLine = append(indexOfLine, l)
 	}
 
-	return Lines{raw, indexOfLine, 0}
+	return Lines{raw, indexOfLine, 0, len(indexOfLine)}
 }
 
 type Lines struct {
 	raw         []byte
 	indexOfLine []int
-	base        int
+	start       int
+	end         int
 }
 
 var _ interface {
@@ -54,20 +55,21 @@ var _ interface {
 } = Lines{}
 
 func (l Lines) Len() int {
-	return len(l.indexOfLine) - 1
+	return l.end - l.start - 1
 }
 
 func (l Lines) At(i int) Element {
-	return NewLineRaw(l.raw, l.indexOfLine[i], l.indexOfLine[i+1])
+	return NewLineRaw(l.raw, l.indexOfLine[l.start+i], l.indexOfLine[l.start+i+1])
 }
 
 func (l Lines) Slice(start, end int) Document {
-	indexOfLine := l.indexOfLine[start : end+1]
-	return Lines{
+	x := Lines{
 		l.raw,
-		indexOfLine,
-		l.base + start,
+		l.indexOfLine,
+		l.start + start,
+		l.start + end + 1,
 	}
+	return x
 }
 
 func (l Lines) Join() string {
@@ -79,7 +81,7 @@ func (l Lines) Join() string {
 }
 
 func (l Lines) AbsoluteRange() (int, int) {
-	return l.base, l.base + l.Len()
+	return l.start, l.end
 }
 
 func NewLineRaw(raw []byte, start, end int) Line {
