@@ -46,11 +46,10 @@ func Diff(a, b Document) []Edit {
 
 	var edits []Edit
 	preva, prevb := 0, 0
-	//la, lb := a.Len(), b.Len()
 	for _, idxb := range lisb {
 		idxa := btoa[idxb]
 		sa := a.Slice(preva, idxa)
-		sb := a.Slice(prevb, idxb)
+		sb := b.Slice(prevb, idxb)
 		e := NewEdit(sa, sb)
 		if e.Type() != Empty {
 			edits = append(edits, e)
@@ -74,29 +73,32 @@ type Edit struct {
 func (e Edit) Type() EditType {
 	la, lb := e.A.Len(), e.B.Len()
 	switch {
-	case la != 0 && lb != 0:
-		return Replace
-	case la != 0:
-		return Delete
-	case lb != 0:
-		return Insert
-	default:
+	case la == 0 && lb == 0:
 		return Empty
+	case la == 0:
+		return Insert
+	case lb == 0:
+		return Delete
+	default:
+		return Replace
 	}
 }
 
 func (e Edit) String() string {
+	sa, ea := e.A.AbsoluteRange()
+	sb, eb := e.B.AbsoluteRange()
 	switch e.Type() {
 	case Empty:
-		return e.Type().String()
+		return s
 	case Insert:
-		return fmt.Sprintf("%s: %q", e.Type(), e.B.Join())
+		return s + fmt.Sprintf("+ %q", e.B.Join())
 	case Delete:
-		return fmt.Sprintf("%s: %q", e.Type(), e.A.Join())
+		return s + fmt.Sprintf("- %q", e.A.Join())
 	case Replace:
-		return fmt.Sprintf("%s: \nA: %q\nB: %q", e.Type(), e.A.Join(), e.B.Join())
+		return s + fmt.Sprintf("- %q\n+ %q", e.A.Join(), e.B.Join())
+	default:
+		panic(fmt.Sprintf("invalid edit type: %d", e.Type()))
 	}
-	return fmt.Sprintf("%s\nA: %q\nB: %q", e.Type(), e.A.Join(), e.B)
 }
 
 type EditType int

@@ -29,7 +29,10 @@ func TestDiff(t *testing.T) {
 
 	a := NewDocument(sa)
 	b := NewDocument(sb)
-	Diff(a, b)
+	edits := Diff(a, b)
+	for _, e := range edits {
+		t.Log(e)
+	}
 }
 
 func TestUniqueElements(t *testing.T) {
